@@ -17,8 +17,23 @@ export const postRequest = async (req, res) => {
             address
         })
 
-        //find matching donor whose blood group is same as needed by recipient
-        const matchingDonors = await userModel.find({ role: UserRole.DONOR, bloodGroup, city }).select("_id")
+        //count one month back date to get maatching donors whose last donation was one month ago
+        const oneMonthAgo = new Date();
+        oneMonthAgo.setMonth(oneMonthAgo.getMonth() - 1);
+
+
+        //find matching donor whose blood group is same as needed by recipient and last donation was 1 month ago
+        const matchingDonors = await userModel.find(
+            {
+                role: UserRole.DONOR,
+                bloodGroup, 
+                city,
+                $or: [
+                    { lastDonation: { $lt: oneMonthAgo } },
+                    { lastDonation: null }
+                ]
+                
+             }).select("_id")
 
         //creating notifications for all matching donors found 
         const notifications = matchingDonors.map(donor => ({
@@ -37,6 +52,13 @@ export const postRequest = async (req, res) => {
 //when donor accepts a reqeuest
 export const acceptRequest = async (req, res) => {
     try {
+        //first check if user's last donaton was 1 month ago
+        const nextEligible = new Date(req.user.lastDonation)
+        nextEligible.setMonth(nextEligible.getMonth() + 1)
+        if (nextEligible > Date.now()) {
+            return res.status(403).send(`you can only donate once every month. Your next eligible date is ${nextEligible.toDateString()}.`);
+        }
+
         const request = await requestModel.findById(req.params.id)
 
         //if blood group of donor and request not match. For security
@@ -89,7 +111,7 @@ export const getRequests = async (req, res) => {
 //when donor wants to see all requests matching with its blood group
 export const getAllRequests = async (req, res) => {
     try {
-        const requests = await requestModel.find({ bloodGroup: req.user.bloodGroup, city: req.user.city, status: DonaionRequestStatus.PENDING}).sort({ createdAt: -1 })//sort for descending order
+        const requests = await requestModel.find({ bloodGroup: req.user.bloodGroup, city: req.user.city, status: DonaionRequestStatus.PENDING }).sort({ createdAt: -1 })//sort for descending order
 
         if (requests.length === 0) return res.status(404).send("No Request Found")
         res.status(200).send(requests)
@@ -107,7 +129,7 @@ export const getSingleRequest = async (req, res) => {
             }
             return res.status(200).send(request)
         }
-        if (request.bloodGroup!= req.user.bloodGroup) {
+        if (request.bloodGroup != req.user.bloodGroup) {
             return res.status(403).send("Blood Group of Donor Not Matched with required Blood Group")
         }
         return res.status(200).send(request)
