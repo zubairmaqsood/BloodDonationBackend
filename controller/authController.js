@@ -59,6 +59,7 @@ export const loginUser = async(req,res) => {
 
 export function logoutUser(req, res) {
     try {
+        //make token empty in cookies to logout the user
         res.cookie("token", "")
         res.status(200).send("Logged Out Successfully")
     } catch (error) {

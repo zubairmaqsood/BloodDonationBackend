@@ -74,11 +74,16 @@ export const acceptRequest = async (req, res) => {
             return res.status(409).send("Donation Request is already Accepted")
         }
 
+        //change status and add accepted by of request and then save request
         request.status = DonaionRequestStatus.ACCEPTED
         request.acceptedBy = req.user._id
         await request.save()
+
+        //save user last donation as current date of donation
         req.user.lastDonation = new Date()
         await req.user.save()
+
+        //create notification for recipient who post this request
         const notification = await notificationModel.create({
             userId: request.requestedBy,
             requestId: req.params.id,
@@ -111,6 +116,7 @@ export const getRequests = async (req, res) => {
 //when donor wants to see all requests matching with its blood group
 export const getAllRequests = async (req, res) => {
     try {
+        //apply filters that request must have blood group,city matches with donor's blood group and city and also status of requests should be pending 
         const requests = await requestModel.find({ bloodGroup: req.user.bloodGroup, city: req.user.city, status: DonaionRequestStatus.PENDING }).sort({ createdAt: -1 })//sort for descending order
 
         if (requests.length === 0) return res.status(404).send("No Request Found")
@@ -123,12 +129,16 @@ export const getAllRequests = async (req, res) => {
 export const getSingleRequest = async (req, res) => {
     try {
         const request = await requestModel.findOne({ _id: req.params.id })
+
+        //if user role is recipient then check if this request is requested by this recipient 
         if (req.user.role == UserRole.RECIPIENT) {
             if (request.requestedBy != req.user._id) {
                 return res.status(403).send("This Request is not requested by this user")
             }
             return res.status(200).send(request)
         }
+
+        //if user role is donor then check if user blood group map with request blood group for security so that no donor can see request which is not match with its blood group
         if (request.bloodGroup != req.user.bloodGroup) {
             return res.status(403).send("Blood Group of Donor Not Matched with required Blood Group")
         }
