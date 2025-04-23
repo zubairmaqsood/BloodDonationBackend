@@ -130,8 +130,12 @@ export const getSingleRequest = async (req, res) => {
     try {
         const request = await requestModel.findOne({ _id: req.params.id })
 
+        if (!request) {
+            return res.status(404).send("Request not found");
+        }
+
         //if user role is recipient then check if this request is requested by this recipient 
-        if (req.user.role == UserRole.RECIPIENT) {
+        if (req.user.role === UserRole.RECIPIENT) {
             if (request.requestedBy != req.user._id) {
                 return res.status(403).send("This Request is not requested by this user")
             }
@@ -142,6 +146,7 @@ export const getSingleRequest = async (req, res) => {
         if (request.bloodGroup != req.user.bloodGroup) {
             return res.status(403).send("Blood Group of Donor Not Matched with required Blood Group")
         }
+        
         return res.status(200).send(request)
 
     } catch (error) {
