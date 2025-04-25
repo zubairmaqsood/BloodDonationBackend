@@ -30,49 +30,32 @@ export const registerUser = async (req, res) => {
     }
 }
 
-export const loginUser = async (req, res) => {
+export const loginUser = async(req,res) => {
     try {
-        const { email, password } = req.body;
-        const user = await userModel.findOne({ email });
-        
-        if (!user) return res.status(401).json({ 
-            success: false,
-            message: "Invalid email or password" 
-        });
+        const { email, password } = req.body
 
-        const result = await bcrypt.compare(password, user.password);
-        if (!result) return res.status(401).json({ 
-            success: false,
-            message: "Invalid email or password" 
-        });
-
-        const token = generateToken(user);
-        
+        //check if user exist or not
+        const user = await userModel.findOne({ email })
+        if (!user) return res.status(401).send("Invalid email or password");
+  
+        //comparing password with hased password stored in database
+        const result = await bcrypt.compare(password, user.password)
+       
+        if (!result) return res.status(401).send("Invalid email or password");
+       
+        //generate token and send in cookies
+        const token = generateToken(user)
         res.cookie("token", token, {
             httpOnly: true,
             secure: process.env.NODE_ENV === 'production',
-            sameSite: process.env.NODE_ENV === 'production' ? "None" : "Lax",
+            sameSite: process.env.NODE_ENV === 'production'?"None":"Lax",
             maxAge: 7 * 24 * 60 * 60 * 1000
-        });
-
-        res.status(200).json({
-            success: true,
-            message: "Logged in successfully",
-            user: {
-                _id: user._id,
-                email: user.email,
-                role: user.role,  // 'Donor' or 'Recipient'
-                username: user.username
-            }
-        });
-
-    } catch (error) {
-        res.status(500).json({ 
-            success: false,
-            message: error.message 
-        });
+        })
+        res.status(200).send("LoggedIn successfully")
+    } catch (error){
+        res.status(500).send(error.message)
     }
-};
+}
 
 export function logoutUser(req, res) {
     try {

@@ -1,59 +1,25 @@
 import { Router } from "express";
-import {
-  acceptRequest,
-  getSingleRequest,
-  postRequest,
-  getRequests,
-  getAllRequests
-} from "../controller/requestController.js";
+import { acceptRequest, getSingleRequest, postRequest, getRequests, getAllRequests } from "../controller/requestController.js";
 import isLoggedIn from "../middlewares/isLoggedIn.js";
-import isDonor from "../middlewares/isDonor.js";
-import isRecipient from "../middlewares/isRecipient.js";
+import isDonor from "../middlewares/isDonor.js"
+import isRecipient from "../middlewares/isRecipient.js"
 
-const router = Router();
+const router = Router()
 
-// Route to post a new blood request (Recipient only)
-router.post("/",
-  isLoggedIn,
-  isRecipient,
-  postRequest
-);
+//to post a request
+router.post("/",isLoggedIn,isRecipient,postRequest)
 
-// Route to get user-specific requests (for both Donor and Recipient)
-router.get("/user-requests",
-  isLoggedIn,
-  getRequests
-);
+//to get requests for donor which is accepted by donor and for recipient which is requested by recipient 
+router.get("/getRequest",isLoggedIn,getRequests)
 
-// Route to accept a request (Donor only)
-router.patch("/:id/accept",
-  isLoggedIn,
-  isDonor,
-  acceptRequest
-);
+//to accept request by donor
+router.patch("/:id/accept",isLoggedIn,isDonor,acceptRequest)
 
-// Route to get all matching requests for donors (pending status)
-router.get('/donor-requests',
-    isLoggedIn,
-    isDonor,
-    async (req, res, next) => {
-      try {
-        const requests = await RequestModel.find({
-          status: 'pending',
-          bloodGroup: req.user.bloodGroup,
-          city: req.user.city
-        }).sort({ createdAt: -1 });
-        res.status(200).json(requests);
-      } catch (error) {
-        next(error);
-      }
-    }
-  );
+//get all that requests for donor whose blood gruop and city matches donor's blood group and city and whose status is pending
+router.get("/",isLoggedIn,isDonor,getAllRequests)
 
-// Route to get single request details
-router.get("/:id",
-  isLoggedIn,
-  getSingleRequest
-);
+//get request's data which is clicked by user
+router.get("/:id",isLoggedIn,getSingleRequest)
 
-export default router;
+
+export default router
