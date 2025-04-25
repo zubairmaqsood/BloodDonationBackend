@@ -50,52 +50,35 @@ export const postRequest = async (req, res) => {
 }
 
 //when donor accepts a reqeuest
+// In your requestController.js
 export const acceptRequest = async (req, res) => {
     try {
-        //first check if user's last donaton was 1 month ago
-        const nextEligible = new Date(req.user.lastDonation)
-        nextEligible.setMonth(nextEligible.getMonth() + 1)
-        if (nextEligible > Date.now()) {
-            return res.status(403).send(`you can only donate once every month. Your next eligible date is ${nextEligible.toDateString()}.`);
-        }
-
-        const request = await requestModel.findById(req.params.id)
-
-        //if blood group of donor and request not match. For security
-        if (req.user.bloodGroup != request.bloodGroup) {
-            return res.status(403).send("Blood Group Not Matched")
-        }
-
-        if (!request) {
-            return res.status(404).send("Request not found");
-        }
-
-        if (request.status == DonaionRequestStatus.ACCEPTED) {
-            return res.status(409).send("Donation Request is already Accepted")
-        }
-
-        //change status and add accepted by of request and then save request
-        request.status = DonaionRequestStatus.ACCEPTED
-        request.acceptedBy = req.user._id
-        await request.save()
-
-        //save user last donation as current date of donation
-        req.user.lastDonation = new Date()
-        await req.user.save()
-
-        //create notification for recipient who post this request
-        const notification = await notificationModel.create({
-            userId: request.requestedBy,
-            requestId: req.params.id,
-            message: `Your Request of ${request.bloodQty} Unit ${request.bloodGroup} Blood Group at ${request.address} ${request.city} is accepted by ${req.user.username} `
-        })
-        res.status(200).send("Request Accepted")
-
-
+      const request = await RequestModel.findById(req.params.id);
+      
+      // Blood group check
+      if (req.user.bloodGroup !== request.bloodGroup) {
+        return res.status(403).json({ 
+          message: "Your blood group doesn't match this request" 
+        });
+      }
+  
+      // Status check
+      if (request.status === 'accepted') {
+        return res.status(409).json({ 
+          message: "Request already accepted" 
+        });
+      }
+  
+      // Update request
+      request.status = 'accepted';
+      request.acceptedBy = req.user._id;
+      await request.save();
+      
+      res.status(200).json({ message: "Request accepted successfully" });
     } catch (error) {
-        res.status(500).send(error.message)
+      res.status(500).json({ message: error.message });
     }
-}
+  };
 
 export const getRequests = async (req, res) => {
     try {
@@ -114,17 +97,36 @@ export const getRequests = async (req, res) => {
 }
 
 //when donor wants to see all requests matching with its blood group
+// In your requestController.js
 export const getAllRequests = async (req, res) => {
     try {
-        //apply filters that request must have blood group,city matches with donor's blood group and city and also status of requests should be pending 
-        const requests = await requestModel.find({ bloodGroup: req.user.bloodGroup, city: req.user.city, status: DonaionRequestStatus.PENDING }).sort({ createdAt: -1 })//sort for descending order
-
-        if (requests.length === 0) return res.status(404).send("No Request Found")
-        res.status(200).send(requests)
+      if (!req.user.bloodGroup || !req.user.city) {
+        return res.status(400).json({
+          success: false,
+          message: "Donor profile incomplete - blood group and city required"
+        });
+      }
+  
+      const requests = await RequestModel.find({
+        status: 'pending',
+        bloodGroup: req.user.bloodGroup,
+        city: req.user.city
+      }).sort({ createdAt: -1 });
+  
+      res.status(200).json({
+        success: true,
+        data: requests
+      });
     } catch (error) {
-        res.status(500).send(error.message)
+      console.error('Error fetching donor requests:', error);
+      res.status(500).json({
+        success: false,
+        message: "Failed to fetch requests",
+        error: error.message
+      });
     }
-}
+};
+
 
 export const getSingleRequest = async (req, res) => {
     try {
